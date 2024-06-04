@@ -27,7 +27,12 @@ const foundItemSchema = new Schema({
     type: String,
     default: 'not claimed', // or 'claimed'
     required: true
-  }
+  },
+  claimedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User', // Referensi ke model User
+    default: null,
+  },
 }, {
   timestamps: true
 });

@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const passport = require('passport');
-const User = require('../models/UserModel'); // Sesuaikan dengan path model pengguna Anda
+const jwt = require('jsonwebtoken');
+const User = require('../models/UserModel');
 
 // Registrasi Pengguna
 router.post('/register', async (req, res) => {
@@ -38,10 +39,36 @@ router.post('/register', async (req, res) => {
 
 // Login Handle
 router.post('/login', (req, res, next) => {
-  passport.authenticate('local', {
-    successRedirect: '/dashboard', // Sesuaikan dengan rute sukses
-    failureRedirect: '/users/login', // Sesuaikan dengan rute gagal
-    failureFlash: true
+  console.log('Received login request with body:', req.body);
+  passport.authenticate('local', (err, user, info) => {
+    if (err) {
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+    if (!user) {
+      return res.status(401).json({ message: 'Email atau password salah' });
+    }
+    // Menggenerate token
+  const token = jwt.sign({ id: user._id }, 'rahasia', {
+    expiresIn: 86400 // expires in 24 hours
+  });
+    req.login(user, (err) => {
+      if (err) {
+        return res.status(500).json({message: err.message});
+      }
+      // Sukses login, kirimkan respon sukses dan token jika perlu
+      // Contoh: res.json({message: 'Login berhasil', token: 'yourTokenHere'});
+      return res.json({
+        message: 'Login berhasil',
+        user: {
+          _id: user._id, // Include the MongoDB user ID
+          email: user.email,
+          name: user.name
+          // Add any other user info you need client-side
+        },
+        token: token
+        // Include the token if you are using token-based authentication
+      });
+    });
   })(req, res, next);
 });
 

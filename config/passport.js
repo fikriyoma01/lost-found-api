@@ -3,7 +3,7 @@ const LocalStrategy = require('passport-local').Strategy;
 const bcrypt = require('bcryptjs');
 
 // Load user model
-const User = require('../models/UserModel'); // Sesuaikan dengan path model pengguna Anda
+const User = require('../models/UserModel');
 
 module.exports = function(passport) {
   passport.use(

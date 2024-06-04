@@ -4,6 +4,7 @@ const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
 const flash = require('connect-flash'); // Impor connect-flash
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -11,7 +12,7 @@ const port = process.env.PORT || 5000;
 
 // Konfigurasi CORS
 app.use(cors({
-  origin: 'http://localhost:3000', // Sesuaikan dengan origin frontend Anda
+  origin: 'http://localhost:3000', // Sesuaikan dengan origin frontend
   methods: ['GET', 'POST', 'DELETE', 'UPDATE', 'PUT', 'PATCH'],
   credentials: true // Untuk mendukung sesi dengan CORS
 }));
@@ -22,9 +23,13 @@ app.use(express.urlencoded({ extended: true }));
 
 // Express session
 app.use(session({
-  secret: 'secret',
-  resave: true,
-  saveUninitialized: true
+  secret: process.env.SESSION_SECRET, // Replace with your secret
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+  }
 }));
 
 // Connect flash middleware
@@ -48,8 +53,8 @@ app.use((req, res, next) => {
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  // useCreateIndex: true, // Tambahkan ini jika Anda menggunakan method .createIndex di mana saja dalam aplikasi Anda
-  // useFindAndModify: false // Tambahkan ini jika Anda menggunakan method .findOneAndUpdate atau .findOneAndDelete
+  // useCreateIndex: true, // Tambahkan ini jika menggunakan method .createIndex di mana saja dalam aplikasi
+  // useFindAndModify: false // Tambahkan ini jika menggunakan method .findOneAndUpdate atau .findOneAndDelete
 });
 
 const connection = mongoose.connection;
@@ -66,6 +71,19 @@ app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
+// Ini melayani file-file statis dari direktori build jika dalam production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, 'client/build')));
+
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
+  });
+} else {
+  app.get('*', function(req, res) {
+    res.sendFile(path.join(__dirname, '..', 'lost-found-app', 'build', 'index.html'));
+  });
+}
+
 // Catch 404 and forward to error handler
 app.use(function(req, res, next) {
   res.status(404).send('404 Not Found');
@@ -75,3 +93,4 @@ app.use(function(req, res, next) {
 app.listen(port, () => {
   console.log(`Server is running on port: ${port}`);
 });
+
