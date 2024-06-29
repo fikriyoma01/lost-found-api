@@ -1,5 +1,8 @@
 const router = require('express').Router();
 let LostItem = require('../models/LostItemModel');
+const FoundItem = require('../models/FoundItemModel');
+const { createNotification } = require('../utils/notificationUtils');
+
 
 // Tambahkan laporan kehilangan baru
 router.post('/add', async (req, res) => {
@@ -7,6 +10,24 @@ router.post('/add', async (req, res) => {
 
   try {
     const savedItem = await newLostItem.save();
+    
+    // Cari item yang ditemukan yang cocok
+    const foundItem = await FoundItem.findOne({
+      itemType: savedItem.itemType,
+      description: { $regex: savedItem.description, $options: 'i' }
+    });
+
+    if (foundItem) {
+      // Kirim notifikasi ke pengguna yang melaporkan item hilang
+      await createNotification(
+        savedItem.reportedBy,
+        `Item yang cocok dengan laporan Anda mungkin telah ditemukan: ${foundItem.description}`,
+        'item_found',
+        foundItem._id,
+        'FoundItem'
+      );
+    }
+
     res.status(201).json(savedItem);
   } catch (err) {
     res.status(400).json('Error: ' + err);

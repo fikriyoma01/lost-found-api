@@ -55,18 +55,14 @@ router.post('/login', (req, res, next) => {
       if (err) {
         return res.status(500).json({message: err.message});
       }
-      // Sukses login, kirimkan respon sukses dan token jika perlu
-      // Contoh: res.json({message: 'Login berhasil', token: 'yourTokenHere'});
       return res.json({
         message: 'Login berhasil',
         user: {
-          _id: user._id, // Include the MongoDB user ID
+          _id: user._id, 
           email: user.email,
           name: user.name
-          // Add any other user info you need client-side
         },
         token: token
-        // Include the token if you are using token-based authentication
       });
     });
   })(req, res, next);

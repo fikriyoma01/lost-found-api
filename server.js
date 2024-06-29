@@ -3,7 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const session = require('express-session');
 const passport = require('passport');
-const flash = require('connect-flash'); // Impor connect-flash
+const flash = require('connect-flash');
 const path = require('path');
 require('dotenv').config();
 
@@ -12,9 +12,9 @@ const port = process.env.PORT || 5000;
 
 // Konfigurasi CORS
 app.use(cors({
-  origin: 'http://localhost:3000', // Sesuaikan dengan origin frontend
+  origin: 'http://localhost:3000',
   methods: ['GET', 'POST', 'DELETE', 'UPDATE', 'PUT', 'PATCH'],
-  credentials: true // Untuk mendukung sesi dengan CORS
+  credentials: true 
 }));
 
 // Middleware untuk parsing JSON dan urlencoded data
@@ -23,7 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Express session
 app.use(session({
-  secret: process.env.SESSION_SECRET, // Replace with your secret
+  secret: process.env.JWT_SECRET, 
   resave: false,
   saveUninitialized: false,
   cookie: {
@@ -53,8 +53,6 @@ app.use((req, res, next) => {
 mongoose.connect(process.env.MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
-  // useCreateIndex: true, // Tambahkan ini jika menggunakan method .createIndex di mana saja dalam aplikasi
-  // useFindAndModify: false // Tambahkan ini jika menggunakan method .findOneAndUpdate atau .findOneAndDelete
 });
 
 const connection = mongoose.connection;
@@ -66,6 +64,8 @@ connection.once('open', () => {
 app.use('/lostitems', require('./routes/lostItems'));
 app.use('/founditems', require('./routes/foundItems'));
 app.use('/users', require('./routes/users')); 
+const notificationsRouter = require('./routes/notifications');
+app.use('/api/notifications', notificationsRouter);
 
 app.get('/', (req, res) => {
   res.send('Hello World!');
@@ -93,4 +93,3 @@ app.use(function(req, res, next) {
 app.listen(port, () => {
   console.log(`Server is running on port: ${port}`);
 });
-

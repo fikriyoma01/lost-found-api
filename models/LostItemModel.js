@@ -27,6 +27,11 @@ const lostItemSchema = new Schema({
     type: String,
     required: true
   },
+  reportedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
 }, {
   timestamps: true
 });

@@ -1,6 +1,9 @@
-const router = require('express').Router();
-let FoundItem = require('../models/FoundItemModel');
-let LostItem = require('../models/LostItemModel');
+const express = require('express');
+const router = express.Router();
+const FoundItem = require('../models/FoundItemModel');
+const LostItem = require('../models/LostItemModel');
+const auth = require('../middleware/auth'); 
+const { createNotification } = require('../utils/notificationUtils'); 
 
 // Tambahkan item temuan baru
 router.post('/add', async (req, res) => {
@@ -8,6 +11,24 @@ router.post('/add', async (req, res) => {
 
   try {
     const savedItem = await newItem.save();
+    
+    // Cari item yang hilang yang cocok
+    const lostItem = await LostItem.findOne({
+      itemType: savedItem.itemType,
+      description: { $regex: savedItem.description, $options: 'i' }
+    });
+
+    if (lostItem) {
+      // Kirim notifikasi ke pengguna yang melaporkan kehilangan
+      await createNotification(
+        lostItem.reportedBy,
+        `Item yang Anda laporkan hilang mungkin telah ditemukan: ${savedItem.description}`,
+        'item_found',
+        savedItem._id,
+        'FoundItem'
+      );
+    }
+
     res.status(201).json(savedItem);
   } catch (err) {
     res.status(400).json('Error: ' + err);
@@ -45,62 +66,58 @@ router.delete('/:id', async (req, res) => {
 });
 
 // Endpoint untuk mengklaim barang
-router.put('/claim/:id', async (req, res) => {
+// Route untuk mengklaim barang
+router.put('/claim/:id', auth, async (req, res) => {
   const { id } = req.params;
-  const userId = req.user?._id;
+  const userId = req.user.id;
+
   console.log(`Attempting to claim item with ID: ${id}`);
-  if (!userId) {
-    return res.status(401).send('User must be logged in to claim items.');
-  }
 
   try {
-    // First, find the item in the lostitems collection
     const lostItem = await LostItem.findById(id);
     if (!lostItem) {
-      console.log(`Lost item with ID: ${id} not found.`);
-      return res.status(404).send('Lost item not found.');
+      return res.status(404).json({ message: 'Lost item not found.' });
     }
 
-    // Then, find or create a corresponding entry in the founditems collection
     let foundItem = await FoundItem.findOne({ lostItemRef: lostItem._id });
     if (!foundItem) {
       foundItem = new FoundItem({
-        // Copy relevant fields from lostItem
         itemType: lostItem.itemType,
         description: lostItem.description,
         locationFound: lostItem.location,
-        dateFound: lostItem.timeLost,
+        dateFound: new Date(),
         contactInfo: lostItem.contactInfo,
-        lostItemRef: lostItem._id, // Assuming you have this reference in your FoundItem schema
-        // ... other fields as necessary
+        lostItemRef: lostItem._id,
+        reportedBy: userId
       });
     }
 
-    // Check if the item is already claimed
     if (foundItem.status === 'claimed') {
-      console.log(`Found item with ID: ${foundItem._id} is already claimed.`);
-      return res.status(400).send('Found item already claimed.');
+      return res.status(400).json({ message: 'Found item already claimed.' });
     }
 
-    // Claim the found item
     foundItem.status = 'claimed';
-    foundItem.claimedBy = userId
+    foundItem.claimedBy = userId;
     await foundItem.save();
+
     console.log(`Found item with ID: ${foundItem._id} claimed.`);
-    res.send('Found item successfully claimed.');
+
+    // Create notification for the user who reported the lost item
+    await createNotification(
+      lostItem.reportedBy.toString(),
+      `telah menemukan item yang Anda laporkan hilang: ${lostItem.description}`,
+      'item_found',
+      foundItem._id,
+      'FoundItem',
+      userId // ID of the user who found/claimed the item
+    );
+
+    res.json({ message: 'Found item successfully claimed.' });
   } catch (error) {
     console.error(`Error when claiming found item with lost item ID: ${id}`, error);
-    res.status(500).send('Server error.');
+    res.status(500).json({ message: 'Server error.' });
   }
 });
-
-// Middleware untuk verifikasi autentikasi user
-// const isAuthenticated = (req, res, next) => {
-//   if (req.isAuthenticated()) {
-//     return next();
-//   }
-//   res.status(401).send('User is not authenticated.');
-// };
 
 // Route untuk mendapatkan daftar item yang telah diklaim oleh pengguna tertentu
 router.get('/claimeditems/:userId', async (req, res) => {
